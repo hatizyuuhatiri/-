@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>我慢貯金 Prototype</title>
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--text:#20242b;--muted:#747b86;--line:#e7e9ee;--accent:#4f67d8;--accent2:#eef1ff;--good:#15956b}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",sans-serif}
+.app{max-width:620px;margin:auto;padding:18px 16px 90px}.top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.title{font-size:24px;font-weight:800}.sub{color:var(--muted);font-size:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:18px;margin-bottom:14px;box-shadow:0 3px 14px #00000008}
+.hero{background:linear-gradient(135deg,#536bdd,#7788e6);color:#fff;border:0}.hero .sub{color:#e9edff}.amount{font-size:38px;font-weight:850;letter-spacing:-1px;margin:6px 0 14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.stat{background:#ffffff18;border-radius:14px;padding:10px}.stat b{display:block;font-size:17px}.stat span{font-size:11px;opacity:.85}
+button{border:0;border-radius:13px;padding:13px 15px;font-weight:700;font-size:15px;cursor:pointer}.primary{background:#fff;color:#435bd0;width:100%;margin-top:4px}.tabs{display:flex;gap:8px;margin-bottom:14px}.tab{flex:1;background:#fff;border:1px solid var(--line);color:var(--muted)}.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+label{display:block;font-size:13px;font-weight:700;margin:13px 0 6px}input,select,textarea{width:100%;padding:12px;border:1px solid #dfe2e8;border-radius:11px;background:#fff;font:inherit}textarea{min-height:70px;resize:vertical}
+.cat{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}.cat button{background:#f3f4f7;color:#5f6672}.cat button.sel{background:var(--accent2);color:var(--accent);outline:2px solid #bfc8ff}
+.row{display:flex;gap:8px}.row>*{flex:1}.bigbtn{width:100%;background:var(--accent);color:#fff;margin-top:15px}
+h2{font-size:17px;margin:0 0 12px}.empty{text-align:center;color:var(--muted);padding:24px}
+.record{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}.record:last-child{border-bottom:0}.record b{display:block}.record small{color:var(--muted)}.yen{font-weight:800;color:var(--good);white-space:nowrap}
+canvas{width:100%;height:220px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.notice{font-size:12px;color:var(--muted);line-height:1.6}.danger{background:#fff0f0;color:#c44}.secondary{background:#eef0f4;color:#555}
+.hidden{display:none!important}
+@media(min-width:600px){.app{padding-top:28px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top"><div><div class="title">我慢貯金</div><div class="sub">買わなかった分を、貯めた金額として記録</div></div><div>💰</div></div>
+
+  <div class="tabs">
+    <button class="tab active" data-page="home">ホーム</button>
+    <button class="tab" data-page="add">記録</button>
+    <button class="tab" data-page="stats">集計</button>
+    <button class="tab" data-page="data">データ</button>
+  </div>
+
+  <section id="home">
+    <div class="card hero">
+      <div class="sub">今月の節約額</div><div class="amount" id="monthTotal">¥0</div>
+      <div class="stats">
+        <div class="stat"><b id="todayTotal">¥0</b><span>今日</span></div>
+        <div class="stat"><b id="yearTotal">¥0</b><span>今年</span></div>
+        <div class="stat"><b id="allTotal">¥0</b><span>累計</span></div>
+      </div>
+      <button class="primary" onclick="showPage('add')">＋ 我慢したことを記録</button>
+    </div>
+    <div class="card"><h2>最近の記録</h2><div id="recent"></div></div>
+  </section>
+
+  <section id="add" class="hidden">
+    <div class="card">
+      <h2>我慢したことを記録</h2>
+      <label>金額</label><input id="amount" type="number" inputmode="numeric" min="1" placeholder="例：500">
+      <label>カテゴリ</label>
+      <div class="cat" id="cats">
+        <button data-cat="買い食い">🍙 買い食い</button><button data-cat="趣味">🎮 趣味</button><button data-cat="その他">📦 その他</button>
+      </div>
+      <label>欲しかったもの（任意）</label><input id="item" placeholder="例：コンビニスイーツ">
+      <div class="row"><div><label>日付</label><input id="date" type="date"></div><div><label>メモ（任意）</label><input id="memo" placeholder="例：家で食べた"></div></div>
+      <button class="bigbtn" onclick="addRecord()">我慢した！</button>
+    </div>
+  </section>
+
+  <section id="stats" class="hidden">
+    <div class="card">
+      <h2>集計</h2>
+      <div class="row">
+        <select id="period" onchange="renderStats()"><option value="day">日別</option><option value="month" selected>月別</option><option value="year">年別</option></select>
+        <select id="statCat" onchange="renderStats()"><option value="all">全カテゴリ</option><option>買い食い</option><option>趣味</option><option>その他</option></select>
+      </div>
+      <div style="margin-top:12px"><canvas id="chart" width="900" height="420"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>任意期間</h2>
+      <div class="row"><input id="from" type="date"><input id="to" type="date"></div>
+      <button class="bigbtn" onclick="rangeTotal()">期間合計を計算</button>
+      <div id="rangeResult" style="text-align:center;font-size:28px;font-weight:850;margin-top:16px">¥0</div>
+      <div id="rangeBreakdown" class="sub" style="text-align:center"></div>
+    </div>
+  </section>
+
+  <section id="data" class="hidden">
+    <div class="card">
+      <h2>データ管理</h2>
+      <button class="bigbtn" onclick="downloadCSV()">CSV（Excel対応）を書き出す</button>
+      <button class="secondary" style="width:100%;margin-top:9px" onclick="downloadJSON()">バックアップを保存</button>
+      <label>バックアップから復元</label><input type="file" accept=".json" onchange="restoreJSON(event)">
+      <p class="notice">データはこのブラウザ内に保存されます。機種変更やブラウザ削除に備えて、定期的にバックアップしてください。</p>
+      <button class="danger" style="width:100%;margin-top:6px" onclick="clearAll()">全データを削除</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const KEY='gaman-chokin-v1';
+let records=JSON.parse(localStorage.getItem(KEY)||'[]');
+let selectedCat='買い食い';
+const yen=n=>'¥'+Number(n||0).toLocaleString('ja-JP');
+const pad=n=>String(n).padStart(2,'0');
+const todayStr=()=>{let d=new Date();return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`};
+document.getElementById('date').value=todayStr();
+document.getElementById('from').value=new Date(new Date().getFullYear(),new Date().getMonth(),1).toISOString().slice(0,10);
+document.getElementById('to').value=todayStr();
+
+document.querySelectorAll('.cat button').forEach(b=>b.onclick=()=>{document.querySelectorAll('.cat button').forEach(x=>x.classList.remove('sel'));b.classList.add('sel');selectedCat=b.dataset.cat});
+document.querySelector('.cat button').classList.add('sel');
+
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>showPage(b.dataset.page));
+function showPage(p){document.querySelectorAll('section').forEach(s=>s.classList.toggle('hidden',s.id!==p));document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.page===p));if(p==='home')renderHome();if(p==='stats')renderStats();}
+
+function save(){localStorage.setItem(KEY,JSON.stringify(records));}
+function total(arr){return arr.reduce((s,r)=>s+Number(r.amount),0)}
+function monthKey(d){return d.slice(0,7)}
+function yearKey(d){return d.slice(0,4)}
+function addRecord(){
+ const amount=Number(document.getElementById('amount').value);
+ if(!amount||amount<1){alert('金額を入力してください');return}
+ records.push({id:Date.now(),date:document.getElementById('date').value||todayStr(),amount,cat:selectedCat,item:document.getElementById('item').value.trim(),memo:document.getElementById('memo').value.trim()});
+ save(); document.getElementById('amount').value='';document.getElementById('item').value='';document.getElementById('memo').value='';
+ alert(`${yen(amount)}を「我慢貯金」に追加しました！`);
+ showPage('home');
+}
+function renderHome(){
+ let t=todayStr(),m=t.slice(0,7),y=t.slice(0,4);
+ document.getElementById('todayTotal').textContent=yen(total(records.filter(r=>r.date===t)));
+ document.getElementById('monthTotal').textContent=yen(total(records.filter(r=>monthKey(r.date)===m)));
+ document.getElementById('yearTotal').textContent=yen(total(records.filter(r=>yearKey(r.date)===y)));
+ document.getElementById('allTotal').textContent=yen(total(records));
+ let a=[...records].sort((x,y)=>y.id-x.id).slice(0,8);
+ document.getElementById('recent').innerHTML=a.length?a.map(r=>`<div class="record"><div><b>${r.item||r.cat}</b><small>${r.date} ・ ${r.cat}${r.memo?' ・ '+r.memo:''}</small></div><div class="yen">${yen(r.amount)}</div></div>`).join(''):'<div class="empty">まだ記録がありません。<br>我慢したら、ここに追加しましょう。</div>';
+}
+function filtered(){let c=document.getElementById('statCat').value;return c==='all'?records:records.filter(r=>r.cat===c)}
+function renderStats(){
+ let p=document.getElementById('period').value,a=filtered(),map={};
+ a.forEach(r=>{let k=p==='day'?r.date:p==='month'?monthKey(r.date):yearKey(r.date);map[k]=(map[k]||0)+Number(r.amount)});
+ let keys=Object.keys(map).sort(); drawChart(keys.map(k=>({label:k,value:map[k]})));
+}
+function drawChart(data){
+ let c=document.getElementById('chart'),ctx=c.getContext('2d'),w=c.width,h=c.height;
+ ctx.clearRect(0,0,w,h); if(!data.length){ctx.fillStyle='#777';ctx.font='28px sans-serif';ctx.textAlign='center';ctx.fillText('データがありません',w/2,h/2);return}
+ let max=Math.max(...data.map(x=>x.value),1), left=65,bottom=60,top=30,plotH=h-top-bottom,plotW=w-left-20,step=plotW/data.length;
+ ctx.strokeStyle='#e5e7eb';ctx.fillStyle='#666';ctx.font='20px sans-serif';ctx.textAlign='right';
+ for(let i=0;i<=4;i++){let y=top+plotH*i/4;ctx.beginPath();ctx.moveTo(left,y);ctx.lineTo(w-20,y);ctx.stroke();ctx.fillText(yen(Math.round(max*(4-i)/4)),left-8,y+7)}
+ ctx.textAlign='center';
+ data.forEach((d,i)=>{let bh=plotH*d.value/max,x=left+i*step+step*.15,y=top+plotH-bh,bw=step*.7;ctx.fillStyle='#536bdd';ctx.fillRect(x,y,bw,bh);ctx.fillStyle='#555';ctx.font='18px sans-serif';let label=d.label.length>10?d.label.slice(0,10):d.label;ctx.fillText(label,x+bw/2,h-25)});
+}
+function rangeTotal(){
+ let f=document.getElementById('from').value,t=document.getElementById('to').value;
+ if(!f||!t||f>t){alert('期間を正しく指定してください');return}
+ let a=records.filter(r=>r.date>=f&&r.date<=t);
+ document.getElementById('rangeResult').textContent=yen(total(a));
+ let m={};a.forEach(r=>m[r.cat]=(m[r.cat]||0)+Number(r.amount));
+ document.getElementById('rangeBreakdown').textContent=Object.entries(m).map(([k,v])=>`${k} ${yen(v)}`).join('　')||'記録なし';
+}
+function csvCell(x){return '"'+String(x??'').replaceAll('"','""')+'"'}
+function downloadCSV(){
+ let rows=[['日付','カテゴリ','金額','欲しかったもの','メモ'],...records.map(r=>[r.date,r.cat,r.amount,r.item,r.memo])];
+ let csv='\ufeff'+rows.map(row=>row.map(csvCell).join(',')).join('\r\n');
+ let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));a.download='我慢貯金.csv';a.click();URL.revokeObjectURL(a.href);
+}
+function downloadJSON(){
+ let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(records,null,2)],{type:'application/json'}));a.download='我慢貯金バックアップ.json';a.click();URL.revokeObjectURL(a.href);
+}
+function restoreJSON(e){
+ let f=e.target.files[0];if(!f)return;let rd=new FileReader();rd.onload=()=>{try{let x=JSON.parse(rd.result);if(!Array.isArray(x))throw 0;records=x;save();renderHome();alert('復元しました');}catch{alert('バックアップファイルを読み込めませんでした')}};rd.readAsText(f);
+}
+function clearAll(){if(confirm('すべての記録を削除します。よろしいですか？')){records=[];save();renderHome();}}
+renderHome();
+</script>
+</body>
+</html>
